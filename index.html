@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'; manifest-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Локальная подготовка фото</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div><strong data-i18n="brand">Локальная подготовка фото</strong><span class="badge">OFFLINE</span></div>
+    <button id="language" type="button" aria-label="Switch language">EN</button>
+  </header>
+
+  <aside class="privacy" role="note" aria-live="polite">
+    <strong data-i18n="privacyTitle">Ваше фото остаётся на устройстве.</strong>
+    <span data-i18n="privacy">Приложение не загружает, не хранит, не анализирует и не ищет изображения. Обработка выполняется только в памяти браузера. Для внешнего поиска сначала экспортируйте файл, затем загрузите его вручную на выбранном сайте.</span>
+  </aside>
+
+  <main>
+    <section class="panel input-panel" aria-labelledby="input-heading">
+      <h1 id="input-heading" data-i18n="heading">Подготовить изображение локально</h1>
+      <p class="muted" data-i18n="limits">JPEG, PNG или WebP · до 20 МБ · до 32 мегапикселей</p>
+      <label class="file-button" for="file" data-i18n="choose">Выбрать фото</label>
+      <input id="file" type="file" accept="image/jpeg,image/png,image/webp">
+      <button id="clear" type="button" disabled data-i18n="clear">Удалить текущее фото</button>
+      <p id="status" role="status" aria-live="polite" data-i18n="ready">Фото не выбрано.</p>
+    </section>
+
+    <section class="panel editor" aria-labelledby="editor-heading">
+      <h2 id="editor-heading" data-i18n="editor">Ручное кадрирование</h2>
+      <div id="stage" class="stage" tabindex="0" role="application" aria-label="Crop editor">
+        <canvas id="preview" width="800" height="600"></canvas>
+        <div id="crop" class="crop" hidden tabindex="0" role="group" aria-label="Crop selection">
+          <span class="handle nw" data-handle="nw"></span><span class="handle ne" data-handle="ne"></span>
+          <span class="handle sw" data-handle="sw"></span><span class="handle se" data-handle="se"></span>
+        </div>
+        <p id="empty" data-i18n="empty">Выберите фото, чтобы начать.</p>
+      </div>
+      <p class="hint" data-i18n="keyboard">Перетаскивайте рамку и углы. Клавиши-стрелки перемещают рамку; Shift + стрелки меняют её размер.</p>
+      <div class="controls">
+        <label><span data-i18n="zoom">Масштаб</span><input id="zoom" type="range" min="100" max="300" value="100" disabled></label>
+        <label><span data-i18n="rotation">Поворот</span><input id="rotation" type="range" min="-180" max="180" value="0" disabled></label>
+        <label><span data-i18n="margin">Отступ квадратного кадра</span><input id="margin" type="range" min="0" max="30" value="12" disabled></label>
+      </div>
+      <button id="reset" type="button" disabled data-i18n="reset">Сбросить правки</button>
+    </section>
+
+    <section class="panel" aria-labelledby="export-heading">
+      <h2 id="export-heading" data-i18n="exportTitle">Чистый экспорт</h2>
+      <div class="export-options">
+        <label><span data-i18n="format">Формат</span><select id="format"><option value="image/jpeg">JPEG</option><option value="image/png">PNG</option></select></label>
+        <label><span data-i18n="quality">Качество JPEG</span><input id="quality" type="range" min="60" max="100" value="92"></label>
+      </div>
+      <div class="actions">
+        <button class="export" data-kind="clean" disabled data-i18n="clean">Полное чистое перекодирование</button>
+        <button class="export" data-kind="portrait" disabled data-i18n="portrait">Портрет 4:5</button>
+        <button class="export" data-kind="square" disabled data-i18n="square">Квадратный кадр лица</button>
+      </div>
+      <p class="muted" data-i18n="exportNote">Canvas-перекодирование предназначено для удаления обычных метаданных изображения, но не гарантирует стирание всех возможных следов.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="external-heading">
+      <h2 id="external-heading" data-i18n="external">Внешние сервисы</h2>
+      <p data-i18n="manual">Экспортируйте изображение и загрузите его вручную. Ссылки не содержат данных вашего фото.</p>
+      <nav class="links" aria-label="External visual search services">
+        <a href="https://lens.google.com/" target="_blank" rel="noopener noreferrer">Google Lens — <span data-i18n="manualLabel">загрузить вручную</span></a>
+        <a href="https://www.bing.com/visualsearch" target="_blank" rel="noopener noreferrer">Bing Visual Search — <span data-i18n="manualLabel">загрузить вручную</span></a>
+        <a href="https://yandex.com/images/" target="_blank" rel="noopener noreferrer">Yandex Images — <span data-i18n="manualLabel">загрузить вручную</span></a>
+        <a href="https://tineye.com/" target="_blank" rel="noopener noreferrer">TinEye — <span data-i18n="manualLabel">загрузить вручную</span></a>
+        <a href="https://lenso.ai/" target="_blank" rel="noopener noreferrer">Lenso — <span data-i18n="manualLabel">загрузить вручную</span></a>
+      </nav>
+    </section>
+  </main>
+  <footer data-i18n="footer">Работает без сервера. Не используйте внешние сервисы для чувствительных изображений.</footer>
+  <script src="image-header.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
