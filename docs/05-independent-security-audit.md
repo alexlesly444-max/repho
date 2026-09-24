@@ -1,6 +1,6 @@
 # Independent security and correctness audit
 
-**Audit target:** commit `0458546` plus this report only  
+**Audit target:** commit `0458546`, the pre-decode dimension remediation, and this report
 **Audit date:** 2026-09-24  
 **Scope:** `index.html`, `app.js`, `styles.css`, `README.md`, `SECURITY.md`, and `docs/THREAT_MODEL.md`  
 **Release scope assessed:** downloaded-folder/local use only; no deployment exists
@@ -17,7 +17,7 @@ Every conclusion below has exactly one of the requested statuses: **verified**, 
 
 **Status: verified.**
 
-Method: searched runtime files for `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon`, dynamic `import()`, `importScripts`, analytics/tracker terms, remote resource elements, and CSS `@import`/`url()`. No network API, dynamic import, analytics, tracker, or upload path was found. `index.html:9` loads only `styles.css`; `index.html:78` loads only `app.js`. There are no `<img src>`, external fonts, forms, or remote scripts/styles/images. The only image assignment is `candidate.src=url` at `app.js:24`, where `url` is returned locally by `URL.createObjectURL(file)` on the selected `File` in the same statement.
+Method: searched runtime files for `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon`, dynamic `import()`, `importScripts`, analytics/tracker terms, remote resource elements, and CSS `@import`/`url()`. No network API, dynamic import, analytics, tracker, or upload path was found. `index.html:9` loads only `styles.css`; `index.html:78-79` loads only `image-header.js` and `app.js`. There are no `<img src>`, external fonts, forms, or remote scripts/styles/images. The only image assignment is `candidate.src=url` in `app.js`, where `url` is returned locally by `URL.createObjectURL(file)` after header validation.
 
 Runtime evidence: with Chromium's context offline, local loading, file validation, rotation, zoom, keyboard crop adjustment, and three exports produced only `file:///workspace/repho/{index.html,styles.css,app.js}` and `blob:null/...` requests. The recorded external-request list was empty and no page exception occurred.
 
@@ -35,13 +35,13 @@ All five have `target="_blank"` and `rel="noopener noreferrer"` at `index.html:6
 
 **Status: verified.**
 
-Method: inspected all seven tracked project files and searched runtime code for server endpoints, authentication/credential handling, databases, cloud services, cookies, `localStorage`, `sessionStorage`, IndexedDB, Cache Storage, and service workers. None is present. `git ls-files` lists only the three runtime files and four documentation files; `find` found no workflow, package manifest, or lock file. State consists of module variables `image`, `objectUrl`, `lang`, `crop`, and `drag` at `app.js:9-11`, so image/editor state is not persisted across a page lifecycle.
+Method: inspected all tracked project files and searched runtime code for server endpoints, authentication/credential handling, databases, cloud services, cookies, `localStorage`, `sessionStorage`, IndexedDB, Cache Storage, and service workers. None is present. `find` found no workflow, package manifest, or lock file. State consists of module variables `image`, `objectUrl`, `lang`, `crop`, and `drag` in `app.js`, so image/editor state is not persisted across a page lifecycle.
 
 ### 2.2 Browser-memory image lifecycle
 
 **Status: verified.**
 
-Source evidence: the selected `File` is represented by a temporary object URL and decoded into an `Image` at `app.js:24`; the decoded `Image` is retained in the module-scoped `image` variable at `app.js:9,24` and used by `draw()` and `renderExport()` at `app.js:27,36`. `clearImage()` nulls that reference, clears the file input/canvas, and disables editing at `app.js:21`.
+Source evidence: the selected `File` is represented by a temporary object URL and decoded into an `Image` at `app.js:22`; the decoded `Image` is retained in the module-scoped `image` variable at `app.js:8,22` and used by `draw()` and `renderExport()` at `app.js:25,34`. `clearImage()` nulls that reference, clears the file input/canvas, and disables editing at `app.js:20`.
 
 This demonstrates browser-memory retention during editing. It does **not** demonstrate physical overwriting of browser or operating-system memory, and the application does not claim that guarantee (`README.md:24`; `docs/THREAT_MODEL.md:39`).
 
@@ -51,12 +51,12 @@ This demonstrates browser-memory retention during editing. It does **not** demon
 
 Source evidence:
 
-- `revoke()` calls `URL.revokeObjectURL` and clears the tracked value (`app.js:19`).
-- replacement and clearing call `revoke()` (`app.js:21,24`);
-- decode rejection and decoded-size rejection revoke the candidate URL (`app.js:24`);
-- reset revokes the successfully decoded source URL after drawing (`app.js:26`);
-- each export URL is revoked from a zero-delay callback after triggering the download (`app.js:36`);
-- `beforeunload` calls `revoke()` (`app.js:39`).
+- `revoke()` calls `URL.revokeObjectURL` and clears the tracked value (`app.js:18`).
+- replacement and clearing call `revoke()` (`app.js:20,22`);
+- decode rejection and decoded-size rejection revoke the candidate URL (`app.js:22`);
+- reset revokes the successfully decoded source URL after drawing (`app.js:24`);
+- each export URL is revoked from a zero-delay callback after triggering the download (`app.js:34`);
+- `beforeunload` calls `revoke()` (`app.js:37`).
 
 Runtime evidence: instrumentation around `URL.createObjectURL`/`URL.revokeObjectURL` observed five URLs (two decode attempts that reached object-URL creation and three exports), and every created URL appeared in the revoked list after export/clear. Revocation was observed as an API call; immediate physical memory erasure is not inferred.
 
@@ -64,7 +64,7 @@ Runtime evidence: instrumentation around `URL.createObjectURL`/`URL.revokeObject
 
 **Status: verified.**
 
-Method: searched for `file.name`, `filename`, download handling, URL assignments, and DOM text sinks. Runtime code never reads `File.name`. The test selected a valid file named `SECRET-SOURCE-NAME.png`; that string did not occur in `body.textContent`. Export names come exclusively from the constant map `{clean:'photo-clean-reencode', portrait:'photo-portrait-4x5', square:'photo-square'}` at `app.js:36`. No log API exists, and the only service URLs are the fixed literals at `index.html:69-73`.
+Method: searched for `file.name`, `filename`, download handling, URL assignments, and DOM text sinks. Runtime code never reads `File.name`. The test selected a valid file named `SECRET-SOURCE-NAME.png`; that string did not occur in `body.textContent`. Export names come exclusively from the constant map `{clean:'photo-clean-reencode', portrait:'photo-portrait-4x5', square:'photo-square'}` at `app.js:34`. No log API exists, and the only service URLs are the fixed literals at `index.html:69-73`.
 
 ## 3. Image processing and exports
 
@@ -72,7 +72,7 @@ Method: searched for `file.name`, `filename`, download handling, URL assignments
 
 **Status: verified.**
 
-Source evidence: `app.js:36` selects one of three fixed names and appends only the locally selected output extension. Full-size export draws from the decoded `image`; crop exports draw from the local preview canvas. Portrait output dimensions are forced to a 4:5 integer ratio and square width equals height, also at `app.js:36`.
+Source evidence: `app.js:34` selects one of three fixed names and appends only the locally selected output extension. Full-size export draws from the decoded `image`; crop exports draw from the local preview canvas. Portrait output dimensions are forced to a 4:5 integer ratio and square width equals height, also at `app.js:34`.
 
 Runtime evidence: offline Chromium produced exactly `photo-clean-reencode.png`, `photo-portrait-4x5.png`, and `photo-square.png`. No source-derived name was used.
 
@@ -80,7 +80,7 @@ Runtime evidence: offline Chromium produced exactly `photo-clean-reencode.png`, 
 
 **Status: verified.**
 
-Method: inspected the full-size branch at `app.js:36`. It draws decoded image pixels into a newly created canvas and calls `canvas.toBlob`; it does not copy source container bytes or metadata structures. This supports the limited expectation that ordinary source metadata is omitted during browser re-encoding. The UI calls it “Полное чистое перекодирование” / “Full clean re-encode” and expressly says exhaustive trace erasure is not guaranteed (`index.html:58,62`; `app.js:14-15`). `README.md:9` likewise warns that the browser encoder may add implementation data or leave unrecognized traces.
+Method: inspected the full-size branch at `app.js:34`. It draws decoded image pixels into a newly created canvas and calls `canvas.toBlob`; it does not copy source container bytes or metadata structures. This supports the limited expectation that ordinary source metadata is omitted during browser re-encoding. The UI calls it “Полное чистое перекодирование” / “Full clean re-encode” and expressly says exhaustive trace erasure is not guaranteed (`index.html:58,62`; `app.js:13-14`). `README.md:9` likewise warns that the browser encoder may add implementation data or leave unrecognized traces.
 
 ### 3.3 Exhaustive metadata/forensic erasure
 
@@ -90,30 +90,48 @@ Method: inspected the full-size branch at `app.js:36`. It draws decoded image pi
 
 **Status: verified.**
 
-Source evidence: the file handler checks 20 MiB before reading; permits only JPEG/PNG/WebP declared MIME types; verifies JPEG/PNG magic bytes and both RIFF/WEBP markers; relies on decoder `onerror` for malformed content; and rejects decoded images above 32 megapixels before enabling editing (`app.js:3-5,23-24`). Each explicit rejection calls `clearImage()` and sets a localized error status (`app.js:14-15,21,24`).
+Source evidence: the file handler checks 20 MiB before reading, reads at most `HEADER_LIMIT` bytes, and passes those bytes plus total size to the binary parser before creating an object URL or `Image` (`app.js`; `image-header.js`). The parser identifies JPEG, PNG, and WebP from bytes without consulting MIME or extension, extracts dimensions, and rejects malformed, truncated, dimension-unreadable, or unsupported headers. Decoder `onerror` and the post-decode size/dimension comparison remain defense in depth. Each explicit validation rejection calls `clearImage()` and sets a localized error status.
 
-Runtime evidence under offline Chromium:
+Dependency-free parser/integration evidence for the remediated build:
 
-- an unsupported `text/plain` file was rejected with the visible “not a valid JPEG, PNG, or WebP” status and disabled controls;
-- PNG bytes declared as JPEG were rejected with the same safe state;
-- a PNG signature followed by malformed data reached decoder failure and produced the same safe state;
-- a 20 MiB + 1 byte input produced the visible size error and disabled controls;
-- a compact synthetic 6000×6000 (36 MP) PNG produced the visible 32-megapixel error and disabled controls;
-- browser-generated valid JPEG and WebP files both reached “ready to edit.”
+- valid synthetic JPEG, PNG, and WebP headers returned their encoded dimensions;
+- PNG bytes labelled as JPEG and WebP bytes labelled as PNG were identified from binary content, not caller metadata;
+- truncated JPEG/PNG/WebP data, a corrupted PNG IHDR, and unsupported bytes were rejected;
+- a valid compressed 6000×6000 (36 MP) PNG produced the visible 32-megapixel error before decoder or object-URL invocation;
+- source ordering retains the 20 MiB rejection before the bounded header read.
 
 ### 3.5 Low-level file-read failure
 
-**Status: finding. Severity: low.** A lower-level `File.slice(...).arrayBuffer()` rejection is not converted into a user-visible failure. `signature()` awaits that operation at `app.js:23`, while the async change handler at `app.js:24` has no rejection handler. If the selected file becomes unreadable or the browser reports an I/O failure, the promise rejects, leaving an unhandled error and potentially retaining the previous editable image/status. **Minimal repair:** catch read/signature exceptions in the change handler, call `clearImage()`, and display the existing invalid-file error (or a dedicated read-error message).
+**Status: finding. Severity: low.** A lower-level `File.slice(...).arrayBuffer()` rejection is not converted into a user-visible failure. The async change handler awaits that operation at `app.js:22` without a rejection handler. If the selected file becomes unreadable or the browser reports an I/O failure, the promise rejects, leaving an unhandled error and potentially retaining the previous editable image/status. **Minimal repair:** catch read exceptions in the change handler, call `clearImage()`, and display the existing invalid-file error (or a dedicated read-error message).
 
-### 3.6 Decoded-size limit timing
+### 3.6 Decoded-size limit timing — remediation verification
 
-**Status: finding. Severity: medium.** The 32-megapixel test is executed in `candidate.onload` at `app.js:24`, after the browser decoder has already decoded enough of the file to populate the image. A highly compressed oversized image can therefore consume substantial decoder memory or trigger process instability before the application rejects it. The limit prevents oversized images from entering the editor but is not a pre-decode resource limit. The failure path is local availability loss from a crafted compression-bomb image; CSP and lack of networking do not mitigate decoder allocation. **Minimal repair:** parse and validate format dimensions from bounded header data before assigning the blob URL to `Image`, while retaining the post-decode dimension check as defense in depth.
+**Status: verified.** **Former severity: medium; fixed.** `image-header.js` now reads/parses a bounded maximum of 256 KiB and extracts dimensions from JPEG SOF segments, PNG IHDR (including CRC validation), and WebP VP8X/VP8L/VP8 headers without using filename or declared MIME. In `app.js`, the encoded-size check and bounded read occur first, parsed `width × height` is compared with 32,000,000 next, and only then can `URL.createObjectURL` and `new Image()` run. The original post-decode pixel check remains.
+
+Dependency-free proof is in `tests/image-header.test.js` and `tests/predecode-rejection.test.js`. The targeted integration test builds a valid compressed 6000×6000 1-bit PNG smaller than 20 MiB, executes the real `app.js` change handler with instrumented `Image` and `URL.createObjectURL`, observes the 32-megapixel error, and asserts both invocation counters remain zero. Commands and results:
+
+```text
+node --check image-header.js
+node --check app.js
+node --check tests/image-header.test.js
+node --check tests/predecode-rejection.test.js
+node tests/image-header.test.js
+# PASS: valid JPEG/PNG/WebP dimensions, >32 MP declaration, malformed/truncated headers, MIME mismatches
+node tests/predecode-rejection.test.js
+# PASS: 36 MP compressed PNG rejected before Image construction or object-URL creation
+```
+
+Files changed for this remediation: `image-header.js` (bounded binary parser), `app.js` (pre-decode ordering and retained post-decode check), `index.html` (loads the local parser), `tests/image-header.test.js` (parser cases), `tests/predecode-rejection.test.js` (targeted ordering proof), and this audit report.
+
+#### Offline browser re-run of the remediated build
+
+**Status: not verified.** Precise reason: this execution environment does not currently contain a browser executable or browser automation library, and the task explicitly prohibits installing packages. The dependency-free VM integration test proves ordering and zero decoder/object-URL invocations for the oversized fixture, but it is not represented as a browser test. The earlier Chromium results elsewhere in this report apply to the pre-remediation build and are retained as historical audit evidence, not falsely re-labelled as a run of the changed build.
 
 ### 3.7 Rotation, crop, and export network independence
 
 **Status: verified.**
 
-Source evidence: rotation/zoom call `draw()`; pointer/keyboard crop handlers modify the numeric `crop` object; and export uses canvas drawing plus blob URLs (`app.js:27-37`). None calls a network API. Runtime evidence: rotation to 37°, zoom to 150%, keyboard move/resize, and all three exports completed with the context offline and no HTTP(S) request.
+Source evidence: rotation/zoom call `draw()`; pointer/keyboard crop handlers modify the numeric `crop` object; and export uses canvas drawing plus blob URLs (`app.js:25-35`). None calls a network API. Historical pre-remediation runtime evidence showed rotation to 37°, zoom to 150%, keyboard move/resize, and all three exports completing offline without HTTP(S); as disclosed above, that browser sequence was not re-run against the remediated build.
 
 ## 4. Browser security
 
@@ -126,7 +144,7 @@ The meta policy is at `index.html:6` and is internally consistent with the curre
 - `default-src 'none'` denies unspecified resource types by default;
 - `script-src 'self'` allows the same-origin local `app.js` and denies remote/inline script;
 - `style-src 'self'` allows the same-origin local `styles.css` and denies remote/inline stylesheet content;
-- `img-src 'self' blob:` permits local image resources and the selected-file blob used at `app.js:24`;
+- `img-src 'self' blob:` permits local image resources and the selected-file blob used at `app.js:22`;
 - `connect-src`, `font-src`, `media-src`, `object-src`, `frame-src`, `child-src`, `worker-src`, `form-action`, and `manifest-src` are explicitly `none`;
 - `base-uri 'none'` prevents a `<base>` from changing URL resolution.
 
@@ -136,7 +154,7 @@ The policy does **not** block top-level hyperlink navigation; therefore the five
 
 **Status: verified.**
 
-Method: searched for `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `eval`, and `new Function`; none exists. Dynamic localized/user-facing text is assigned with `textContent` at `app.js:18,38`. The selected filename is never read. Dynamic `src`/`href` assignments are restricted to blob URLs created inside the application (`app.js:24,36`), and the only dynamic download name is selected from a constant map (`app.js:36`). Crop style values derive from clamped numeric state, not file content (`app.js:28-33`). No untrusted value reaches executable markup or a service URL.
+Method: searched for `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `eval`, and `new Function`; none exists. Dynamic localized/user-facing text is assigned with `textContent` at `app.js:17,36`. The selected filename is never read. Dynamic `src`/`href` assignments are restricted to blob URLs created inside the application (`app.js:22,34`), and the only dynamic download name is selected from a constant map (`app.js:34`). Crop style values derive from clamped numeric state, not file content (`app.js:26-31`). No untrusted value reaches executable markup or a service URL.
 
 ### 4.3 Sensitive browser permissions
 
@@ -172,8 +190,8 @@ Method: searched for service-worker registration and Cache Storage and found nei
 
 | ID | Status | Severity | Affected file | Finding | Minimal repair |
 | --- | --- | --- | --- | --- | --- |
-| F-01 | finding | medium | `app.js:24` | The 32 MP limit runs only after browser decoding, so it cannot prevent pre-check decoder memory exhaustion. | Parse bounded JPEG/PNG/WebP dimensions before assigning to `Image`; keep the post-decode check. |
-| F-02 | finding | low | `app.js:23-24` | A rejected file-header `arrayBuffer()` read becomes an unhandled promise rejection without a safe visible status. | Catch read/signature exceptions, clear the editor, and show a read/invalid-file error. |
+| F-01 | verified | medium | `image-header.js`; `app.js`; `tests/` | Fixed: dimensions are parsed from a bounded slice and the 32 MP limit is enforced before object-URL creation or decoder construction; the targeted test observes zero invocations. | None for this finding. |
+| F-02 | finding | low | `app.js:22` | A rejected file-header `arrayBuffer()` read becomes an unhandled promise rejection without a safe visible status. | Catch read exceptions, clear the editor, and show a read/invalid-file error. |
 
 ## Claims that remain unverified
 
@@ -181,9 +199,10 @@ Method: searched for service-worker registration and Cache Storage and found nei
 2. **Future publication response headers — not verified:** there is no deployment or URL to inspect, and deployment was outside the permitted audit actions.
 3. **Behavior in browsers other than the available Chromium 140 — not verified:** runtime testing used only that installed browser; cross-browser execution was not available without adding tooling.
 4. **Physical memory overwriting — not verified:** object-URL revocation and JavaScript-reference clearing were observed, but browser garbage collection, allocator behavior, swap, and physical erasure are outside JavaScript control.
+5. **Offline browser/runtime re-run of the remediated build — not verified:** no browser executable or automation library is available in the current environment, and installing one is prohibited. Syntax, parser, and dependency-free integration tests passed; those are not substituted for a browser result.
 
 ## Release recommendation
 
 **ready for local use only**
 
-The reviewed build has no network/upload/persistence path, works from a downloaded folder in the tested offline browser, and uses fixed non-source-derived export names. F-01 remains relevant to availability when opening adversarial images, and F-02 affects safe error presentation for rare file-read failures. Publication should remain a separate task with server-header verification.
+The reviewed build has no network/upload/persistence path and uses fixed non-source-derived export names. F-01 is fixed by bounded pre-decode dimension parsing and the targeted ordering test. F-02 still affects safe error presentation for rare file-read failures. The remediated build's offline browser run remains explicitly unverified in this environment, and publication should remain a separate task with server-header verification.
